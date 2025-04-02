@@ -9,7 +9,7 @@ package viper.carbon.verifier
 import viper.carbon.boogie.{Assert, Program}
 import viper.silver.reporter.BackendSubProcessStages._
 import viper.silver.reporter.{BackendSubProcessReport, Reporter}
-import viper.silver.testing.BenchmarkStatCollector
+// import viper.silver.testing.BenchmarkStatCollector
 import viper.silver.verifier.errors.Internal
 import viper.silver.verifier.reasons.InternalReason
 import viper.silver.verifier._
@@ -242,7 +242,7 @@ trait BoogieInterface {
     }
     val after = System.currentTimeMillis()
 
-    BenchmarkStatCollector.addToStat("boogieTime", after - before)
+    // BenchmarkStatCollector.addToStat("boogieTime", after - before)
 
     // Deregister the shutdown hook, otherwise the prover process that has been stopped cannot be garbage collected.
     // Explanation: https://blog.creekorful.org/2020/03/classloader-and-memory-leaks/
