@@ -1,0 +1,46 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "scala",
+            "request": "launch",
+            "name": "Carbon Configurable Tests",
+            "testClass": "viper.carbon.ConfigurableCarbonTests",
+            "jvmOptions": [
+                "-Xss128m",
+                "-DCARBON_CONFIG_FILE=${input:carbonConfigFile}",
+                "-DSILICON_LOG_PATH=/home/paul/master-thesis/msc-peibensteine/tryout-results/SE-PC-check-temp/0-carbon.log"
+            ],
+        },
+        {
+            "type": "scala",
+            "request": "attach",
+            "name": "Attach debugger",
+            "buildTarget": "viper.carbon",
+            "hostName": "localhost",
+            "port": 5005
+        }
+    ],
+    "inputs": [
+        {
+            "id": "carbonFile",
+            "type": "command",
+            "command": "extension.commandvariable.file.pickFile",
+            "args": {
+                "include": "compiled-backends/carbon/*.jar",
+                "description": "Select compiled backend",
+                "fromWorkspace": "msc-peibensteine",
+            }
+        },
+        {
+            "id": "carbonConfigFile",
+            "type": "command",
+            "command": "extension.commandvariable.file.pickFile",
+            "args": {
+                "include": "backend-configs/carbon/*.json",
+                "fromWorkspace": "msc-peibensteine",
+                "description": "Select the backend config file"
+            }
+        }
+    ]
+}
