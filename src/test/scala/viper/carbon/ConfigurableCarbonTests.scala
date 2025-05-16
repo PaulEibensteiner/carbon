@@ -2,11 +2,13 @@ package viper.carbon
 
 import java.io.{BufferedWriter, File, FileWriter}
 import java.nio.file.{Files, Path, Paths => JPaths}
+import scala.collection.immutable
 import org.scalatest.ConfigMap
+import viper.silver.ast.HasLineColumn
 import viper.silver.reporter.NoopReporter
 import viper.silver.testing.{ProjectInfo, SystemUnderTest, AnnotatedTestInput, AbstractOutput, SilOutput}
 import viper.silver.utility.{Paths, TimingUtils}
-import viper.silver.verifier.{AbstractError, AbstractVerificationError, Failure, Success, Verifier}
+import viper.silver.verifier.{AbstractError, AbstractVerificationError, Failure, Success, TimeoutOccurred, Verifier}
 import viper.silver.testing.SilSuite
 import viper.silver.frontend.Frontend
 import viper.silver.logger.SilentLogger
@@ -125,7 +127,7 @@ class ConfigurableCarbonTests extends SilSuite {
         super.beforeAll(configMap)
         csvFileName foreach { filename =>
             csvFile = new BufferedWriter(new FileWriter(filename))
-            csvFile.write("File,Outputs,Mean [ms],StdDev [ms],RelStdDev [%],Best [ms],Median [ms],Worst [ms]")
+            csvFile.write("File,Outputs,Mean [ms],StdDev [ms],RelStdDev [%],Best [ms],Median [ms],Worst [ms], ResultsConsistent, Results")
             csvFile.newLine()
             csvFile.flush()
         }
@@ -161,32 +163,39 @@ class ConfigurableCarbonTests extends SilSuite {
             val phaseNames: Seq[String] = frontend(verifier, input.files).phases.map(_.name) :+ "Overall"
             val isWarmup = warmupDirName.isDefined && Paths.isInSubDirectory(Paths.canonize(warmupDirName.get), input.file.toFile)
             val reps = if (isWarmup) 1 else repetitions
+            
+            var foundTimeout = false
+            var lastActualErrors: Seq[AbstractError] = null
 
             // collect data
-            val data = for (_ <- 1 to reps) yield {
+            val data = for (_ <- 1 to reps if !foundTimeout) yield {
                 val fe = frontend(verifier, input.files)
                 val perPhaseTimings = fe.phases.map(p => time(p.f)._2)
                 val actualErrors: Seq[AbstractError] =
                     fe.result match {
                         case Success => Nil
                         case Failure(es) => es collect {
+                            case te: TimeoutOccurred =>
+                                foundTimeout = true; te
                             case e: AbstractVerificationError => e.transformedError()
                             case rest: AbstractError => rest
                         }
                     }
+                if (lastActualErrors != null) {
+                    if (!resultsConsistent(Seq(lastActualErrors, actualErrors))) {
+                        foundTimeout = true
+                    }
+                }
+                lastActualErrors = actualErrors
                 (actualErrors, perPhaseTimings)
             }
-
-            val (verResults, timeResults) = data.unzip
-            if (1 < verResults.length) {
-                Predef.assert(verResults.tail.forall(_ == verResults.head), 
-                                            s"Did not get the same errors for all repetitions: $verResults")
-            }
+            val (verResults: immutable.Seq[Seq[AbstractError]], timeResults: immutable.Seq[Seq[Long]]) = data.unzip
+            val actualReps = verResults.length
 
             val timingsWithTotal = timeResults.toVector.map(row => row :+ row.sum)
             val sortedTimings = timingsWithTotal.sortBy(_.last)
-            val (trimmedTimings, isTrimmed) = if (reps >= 4) {
-                (sortedTimings.slice(1, reps-1), true)
+            val (trimmedTimings, isTrimmed) = if (actualReps >= 4) {
+                (sortedTimings.slice(1,actualReps-1), true)
             } else {
                 (sortedTimings, false)
             }
@@ -215,7 +224,7 @@ class ConfigurableCarbonTests extends SilSuite {
                         JPaths.get(targetDirName).toAbsolutePath.relativize(input.file.toAbsolutePath),
                         verResults.head.length,
                         meanTimings.last, stddevTimings.last, relStddevTimings.last,
-                        bestRun.last, medianRun.last, worstRun.last)
+                        bestRun.last, medianRun.last, worstRun.last, resultsConsistent(verResults), summarizeResults(verResults.head))
                     csvFile.write(csvRowData.mkString(","))
                     csvFile.newLine()
                     csvFile.flush()
@@ -237,7 +246,7 @@ class ConfigurableCarbonTests extends SilSuite {
                         JPaths.get(targetDirName).toAbsolutePath.relativize(input.file.toAbsolutePath),
                         verResults.head.length,
                         meanTimings.last, stddevTimings.last, relStddevTimings.last,
-                        bestRun.last, medianRun.last, worstRun.last)
+                        bestRun.last, medianRun.last, worstRun.last, resultsConsistent(verResults), summarizeResults(verResults.head))
                     csvFile.write(csvRowData.mkString(","))
                     csvFile.newLine()
                     csvFile.flush()
@@ -256,6 +265,25 @@ class ConfigurableCarbonTests extends SilSuite {
                 .zip(phaseNames)
                 .map(tup => tup._1 + " (" + tup._2 + ")")
                 .mkString(", ")
+        }
+
+        private def resultsConsistent(results: Seq[Seq[AbstractError]]): Boolean = {
+            val first = results.head
+            results.tail.forall(_ == first)
+        }
+    
+        private def summarizeResults(results: Seq[AbstractError]): String = {
+            if (results.isEmpty) {
+            "success"
+            } else {
+            results.map(e => {
+                val posString = e.pos match {
+                case lc: HasLineColumn => s"${lc.line}.${lc.column}-" 
+                case _ => ""
+                }
+                s"${posString}${e.fullId}"
+            }).sorted.mkString(";")
+            }
         }
     }
 
