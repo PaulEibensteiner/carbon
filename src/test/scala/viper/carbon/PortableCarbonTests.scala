@@ -87,7 +87,7 @@ class PortableCarbonTests extends SilSuite with StatisticalTestSuite {
     )
   }
 
-  val randomization: Option[(Seq[String], String, Int => Int)] = {
+  override val randomization: Option[(Seq[String], String, Int => Int)] = {
     Some(commandLineArguments, "--proverSpecificRandomSeed", i => i)
   }
 
