@@ -9,8 +9,10 @@
             "jvmOptions": [
                 "-Xss128m",
                 "-DCARBON_CONFIG_FILE=${input:carbonConfigFile}",
-                "-DSILICON_LOG_PATH=/home/paul/master-thesis/msc-peibensteine/tryout-results/SE-PC-check-temp/0-carbon.log"
+                "-DSILICON_LOG_PATH=/home/paul/master-thesis/msc-peibensteine/tryout-results/SE-PC-check-temp/0-carbon.log",
+                "-DROOT_DIR=${workspaceFolder}/.."
             ],
+            "preLaunchTask": "Change cwd"
         },
         {
             "type": "scala",

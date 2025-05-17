@@ -21,6 +21,7 @@ class ConfigurableCarbonTests extends SilSuite {
 
     // The only system property - path to the config file
     private val configFilePathProperty = "CARBON_CONFIG_FILE"
+    private val rootPathProperty = "ROOT_DIR"
     
     // Default configuration values - all in one place for easy overview
     private object Defaults {
@@ -38,11 +39,31 @@ class ConfigurableCarbonTests extends SilSuite {
     }
     
     // Config structure parsed from JSON
-    private lazy val config: Map[String, Any] = {
-        val configFilePath = Option(System.getProperty(configFilePathProperty))
-            .getOrElse(throw new IllegalArgumentException(s"System property '$configFilePathProperty' must be set"))
+    private lazy val rootPath: Path = {
+        info(s"Root path set to: ${System.getProperty(rootPathProperty)}")
+        val pathStr = Option(System.getProperty(rootPathProperty))
+            .getOrElse(throw new IllegalArgumentException(s"System property '$rootPathProperty' must be set"))
+        JPaths.get(pathStr).toAbsolutePath
+    }
 
-        val jsonString = new String(Files.readAllBytes(JPaths.get(configFilePath)))
+    // Helper to resolve paths relative to the config file directory
+    private def resolvePathRelativeToRoot(pathStr: String): Path = {
+        val path = JPaths.get(pathStr)
+        if (path.isAbsolute) {
+            path
+        } else {
+            rootPath.resolve(path).normalize()
+        }
+    }
+
+    private lazy val configFilePath: Path = {
+        val pathStr = Option(System.getProperty(configFilePathProperty))
+            .getOrElse(throw new IllegalArgumentException(s"System property '$configFilePathProperty' must be set"))
+        JPaths.get(pathStr).toAbsolutePath
+    }
+    
+    private lazy val config: Map[String, Any] = {
+        val jsonString = new String(Files.readAllBytes(configFilePath))
         JSON.parseFull(jsonString) match {
             case Some(parsed: Map[_, _]) => 
                 parsed.map { case (k, v) => (k.toString, v) }
@@ -60,17 +81,17 @@ class ConfigurableCarbonTests extends SilSuite {
 
     protected def warmupDirName: Option[String] = {
         val dir = config.getOrElse("warmupLocation", "").toString.trim
-        if (dir.isEmpty) None else Option(dir)
+        if (dir.isEmpty) None else Some(resolvePathRelativeToRoot(dir).toString)
     }
 
     protected def targetDirName: String = 
         config.get("targetLocation") match {
-            case Some(name) => name.toString
+            case Some(name) => resolvePathRelativeToRoot(name.toString).toString
             case None => fail("'targetLocation' not specified in config file")
         }
 
-    protected def csvFileName: Option[String] = getConfigStringOption("csvFile")
-    protected def inclusionFileName: Option[String] = getConfigStringOption("inclusionFile")
+    protected def csvFileName: Option[String] = getConfigStringOption("csvFile").map(resolvePathRelativeToRoot(_).toString)
+    protected def inclusionFileName: Option[String] = getConfigStringOption("inclusionFile").map(resolvePathRelativeToRoot(_).toString)
 
     private var csvFile: BufferedWriter = _
     private var testsToInclude: Option[Set[String]] = None
@@ -126,13 +147,17 @@ class ConfigurableCarbonTests extends SilSuite {
     override def beforeAll(configMap: ConfigMap): Unit = {
         super.beforeAll(configMap)
         csvFileName foreach { filename =>
+            val csvPath = new File(filename).getAbsolutePath // Path is already resolved
+            info(s"Writing results to CSV: $csvPath") // Print the CSV path
+            // Ensure parent directory exists
+            Option(new File(filename).getParentFile).foreach(_.mkdirs())
             csvFile = new BufferedWriter(new FileWriter(filename))
             csvFile.write("File,Outputs,Mean [ms],StdDev [ms],RelStdDev [%],Best [ms],Median [ms],Worst [ms], ResultsConsistent, Results")
             csvFile.newLine()
             csvFile.flush()
         }
         inclusionFileName foreach { filename =>
-            val source = scala.io.Source.fromFile(filename)
+            val source = scala.io.Source.fromFile(filename) // Path is already resolved
             try {
                 testsToInclude = Some(source.getLines().toSet)
             } finally {
@@ -276,13 +301,13 @@ class ConfigurableCarbonTests extends SilSuite {
             if (results.isEmpty) {
             "success"
             } else {
-            results.map(e => {
-                val posString = e.pos match {
-                case lc: HasLineColumn => s"${lc.line}.${lc.column}-" 
-                case _ => ""
-                }
-                s"${posString}${e.fullId}"
-            }).sorted.mkString(";")
+                results.map(e => {
+                    val posString = e.pos match {
+                    case lc: HasLineColumn => s"${lc.line}.${lc.column}-" 
+                    case _ => ""
+                    }
+                    s"${posString}${e.fullId}"
+                }).sorted.mkString(";")
             }
         }
     }
