@@ -208,6 +208,12 @@ case class CarbonVerifier(override val reporter: Reporter,
               List("/mv:-")
             }
             case _ => Nil
+          }) ++
+          (config.boogieStatistics.toOption match {
+            case Some(path) if path.nonEmpty =>
+              List("/proverOpt:C:-st", "/proverOpt:VERBOSITY=1")
+            case _ =>
+              Nil
           })
       }
     }
@@ -233,8 +239,9 @@ case class CarbonVerifier(override val reporter: Reporter,
       case None => false
     }
     val randomSeed = if (config == null) None else config.proverSpecificRandomSeed.toOption
+    val boogieStatisticsPath = if (config != null) config.boogieStatistics.toOption.filter(_.nonEmpty) else None
 
-    invokeBoogie(_translated, options, timeout, randomize, randomSeed) match {
+    invokeBoogie(_translated, options, timeout, randomize, randomSeed, boogieStatisticsPath) match {
       case (version,result) =>
         if (version!=null) { dependencies.foreach(_ match {
           case b:BoogieDependency => b.version = version

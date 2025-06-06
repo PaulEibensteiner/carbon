@@ -80,6 +80,12 @@ class CarbonConfig(args: Seq[String]) extends SilFrontendConfig(args, "Carbon") 
     noshort = true
   )
 
+  val boogieStatistics = opt[String]("proverStatisticsFile",
+    descr = "File path to a log file where prover statistics are saved.  Extension .json will be appended. If none given, no statistics are produced.",
+    default = None,
+    noshort = true
+  )
+
   val boogieOut = opt[String]("print",
     descr = "Write the Boogie output file to the provided filename (default: none)",
     default = None,
