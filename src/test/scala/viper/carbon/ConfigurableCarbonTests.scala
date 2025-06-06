@@ -105,10 +105,6 @@ class ConfigurableCarbonTests extends SilSuite {
         }
     }
 
-    val randomization: Option[(Seq[String], String, Int => Int)] = {
-        Some(carbonArguments, "--proverSpecificRandomSeed", i => i)
-    }
-
     // Verifier configuration
     lazy val verifier: CarbonVerifier = {
         val reporter = NoopReporter
