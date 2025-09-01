@@ -47,6 +47,7 @@ case class FailureContextImpl(counterExample: Option[Counterexample]) extends Fa
   */
 
 trait BoogieInterface {
+  protected def onBoogieStatistics(stats: Map[String,String]): Unit = {}
 
   def reporter: Reporter
 
@@ -175,6 +176,7 @@ trait BoogieInterface {
     val curBlockLs = collection.mutable.ListBuffer[String]()
     var statFileCounter = 0
 
+    val statsMap = scala.collection.mutable.LinkedHashMap[String,String]()
     for (l <- output.linesIterator) {
       l match {
         case "*** END_STATE" =>
@@ -199,7 +201,6 @@ trait BoogieInterface {
         case `timeoutErrorName` if timeout.isDefined => reportTimeout()
         case line =>
           line match {
-            case AnyStatLineP() if boogieStatisticsPath.isEmpty => // pass
             case _ if boogieStatisticsPath.isEmpty => unexpected(s"Found an unparsable output from Boogie: $line")
             case StartStatLineP(_) if inRelevantStatBlock => {
               unexpected(s"Starting stat z3 block while in z3 stat block: $line")
@@ -207,26 +208,34 @@ trait BoogieInterface {
             case StartStatLineP(value) => {
               curBlockLs += "{"
               curBlockLs += s"\"added-eqs\": $value,"
+              statsMap += ("added-eqs" -> value)
               inRelevantStatBlock = true
             }
             case EndStatLineP(name, value) if inRelevantStatBlock => {
               curBlockLs += s"\"$name\": $value"
               curBlockLs += "}"
+              statsMap += (name -> value)
               inRelevantStatBlock = false
               val joinedBlocks = curBlockLs.mkString("")
-              val statFilePath = s"${boogieStatisticsPath.get}-${statFileCounter}.json"
-              try {
-                val writer = new PrintWriter(new File(statFilePath))
-                writer.write(joinedBlocks)
-                writer.close()
-                curBlockLs.clear()
-              } catch {
-                case e: IOException => unexpected(s"Could not write statistics to $statFilePath: ${e.getMessage}")
-              }
+              onBoogieStatistics(statsMap.toMap)
+              boogieStatisticsPath.foreach(
+                path => {
+                  val statFilePath = s"${path}-${statFileCounter}.json"
+                  try {
+                    val writer = new PrintWriter(new File(statFilePath))
+                    writer.write(joinedBlocks)
+                    writer.close()
+                  } catch {
+                    case e: IOException => unexpected(s"Could not write statistics to $statFilePath: ${e.getMessage}")
+                  }
+                })
+              curBlockLs.clear()
+              statsMap.clear()
               statFileCounter += 1
             }
             case ContinueStatLineP(name, value) => {
               curBlockLs += s"\"$name\": $value,"
+              statsMap += (name -> value)
             }
             case AnyStatLineP() => // pass
             case _ => unexpected(s"Found an unparsable output from Boogie: $line")
@@ -237,7 +246,7 @@ trait BoogieInterface {
     // This handles cases where the output ends mid-block or without a clear closing parenthesis on the last line of the block.
     if (inRelevantStatBlock && curBlockLs.nonEmpty && boogieStatisticsPath.isDefined) {
         // Issue a warning if the statistics block was not properly terminated.
-          println(s"Boogie statistics block was not properly terminated. Some statistics might be missing. Last lines: ${curBlockLs.mkString("\n")}")
+        //  println(s"Boogie statistics block was not properly terminated. Some statistics might be missing. Last lines: ${curBlockLs.mkString("\n")}")
     }
     (version_found,errors.toSeq)
   }
@@ -246,7 +255,7 @@ trait BoogieInterface {
     * Invoke Boogie.
     */
   private def run(input: String, options: Seq[String], timeout: Option[Int]) = {
-    println("OPTIONS: " + options.mkString(" "))
+    // println("OPTIONS: " + options.mkString(" "))
     reporter report BackendSubProcessReport("carbon", boogiePath, BeforeInputSent, _boogieProcessPid)
 
     // When the filename is "stdin.bpl" Boogie reads the program from standard input.
@@ -283,8 +292,8 @@ trait BoogieInterface {
     // Send the program to Boogie
     proc.getOutputStream.write(input.getBytes);
     // proc.getOutputStream.close()
-    val last30Chars = input.takeRight(30)
-    println(s"Last 30 characters of input: $last30Chars")
+  // val last30Chars = input.takeRight(30) // debug aid
+    // println(s"Last 30 characters of input: $last30Chars")
 
     //proc.getOutputStream().write("/proverOpt:C:(get-info:all-statistics)\n".getBytes)
     proc.getOutputStream.close()
@@ -317,7 +326,7 @@ trait BoogieInterface {
       val errorOutput = errorConsumer.result.get
       val normalOutput = inputConsumer.result.get
       reporter report BackendSubProcessReport("carbon", boogiePath, OnExit, _boogieProcessPid)
-      println("NORMAL OUTPUT\n" + normalOutput + "\nNORMAL OUTPUT END")
+      // println("NORMAL OUTPUT\n" + normalOutput + "\nNORMAL OUTPUT END")
 
       errorOutput + normalOutput + (if (boogieTimeout) timeoutErrorName else "")
     } catch {
