@@ -37,6 +37,7 @@ case class CarbonVerifier(override val reporter: Reporter,
 
   def start(): Unit = {}
   def stop(): Unit = {
+    logListener.onStop()
     if (allModules != null) {
       allModules foreach (m => {
         m.stop()
@@ -67,6 +68,8 @@ case class CarbonVerifier(override val reporter: Reporter,
   val mapModule = new DefaultMapModule(this)
   val wandModule = new DefaultWandModule(this)
   val loopModule = new DefaultLoopModule(this)
+
+  var logListener: VCGLogger = VCGLogger.Noop
 
   // initialize all modules
   allModules foreach (m => {
@@ -207,6 +210,7 @@ case class CarbonVerifier(override val reporter: Reporter,
       },
       Traverse.TopDown)
     _program = program
+    logListener.onStartVerification(program)
 
     BenchmarkStatCollector.addStat("boogieTime")
 
@@ -239,6 +243,29 @@ case class CarbonVerifier(override val reporter: Reporter,
 
     val (tProg, translatedNames) = mainModule.translate(program, reporter)
     _translated = tProg
+
+  // Removed debug println of translated declaration classes
+
+    // Use a mutable Map to accumulate counts since variables in pattern matching are not updated in the outer scope
+    val stats = scala.collection.mutable.Map(
+      "functions" -> 0,
+      "procedures" -> 0,
+      "types" -> 0,
+      "globalVars" -> 0,
+      "axioms" -> 0
+    )
+
+    _translated.visit({
+      case _: viper.carbon.boogie.Func => stats("functions") += 1
+      case _: viper.carbon.boogie.Procedure => stats("procedures") += 1
+      case _: viper.carbon.boogie.TypeDecl => stats("types") += 1
+      case _: viper.carbon.boogie.TypeAlias => stats("types") += 1
+      case _: viper.carbon.boogie.GlobalVarDecl => stats("globalVars") += 1
+      case _: viper.carbon.boogie.Axiom => stats("axioms") += 1
+    })
+
+    // Forward translation statistics via callback (was previously logged)
+    try logListener.onTranslationCompleted(stats.toMap) catch { case _: Throwable => }
 
 
     val options = {
@@ -291,6 +318,7 @@ case class CarbonVerifier(override val reporter: Reporter,
       }
       timeout = config.timeout.toOption
     }
+
     val randomize = if (config == null) false else config.proverRandomizeSeeds.toOption match {
       case Some(b) => b
       case None => false
@@ -298,6 +326,7 @@ case class CarbonVerifier(override val reporter: Reporter,
     val randomSeed = if (config == null) None else config.proverSpecificRandomSeed.toOption
     val boogieStatisticsPath = if (config != null) config.boogieStatistics.toOption.filter(_.nonEmpty) else None
 
+    logListener.onInvokeBoogie(options)
     invokeBoogie(_translated, options, timeout, randomize, randomSeed, boogieStatisticsPath) match {
       case (version,result) =>
         if (version!=null) { dependencies.foreach(_ match {
@@ -312,6 +341,11 @@ case class CarbonVerifier(override val reporter: Reporter,
         }
         result
     }
+  }
+
+  // Receive Z3 statistics forwarded from BoogieInterface
+  override protected def onBoogieStatistics(stats: Map[String,String]): Unit = {
+    try logListener.onBoogieStatistics(stats) catch { case _: Throwable => }
   }
 
 
