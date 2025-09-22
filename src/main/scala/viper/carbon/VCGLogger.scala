@@ -6,7 +6,9 @@ trait VCGLogger {
   def onStartVerification(program: Program): Unit = {}
   def onTranslationCompleted(stats: Map[String, Int]): Unit = {}
   def onInvokeBoogie(options: Seq[String]): Unit = {}
-  def onBoogieStatistics(stats: Map[String, String]): Unit = {}
+  def onBoogieStatistics(instance: Int, stats: Map[String, Double]): Unit = {}
+  def onInstanceSuccess(instance: Int): Unit = {}
+  def onInstanceStart(instance: Int): Unit = {}
   def onStop(): Unit = {}
 }
 
