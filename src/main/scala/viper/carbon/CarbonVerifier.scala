@@ -235,12 +235,6 @@ case class CarbonVerifier(override val reporter: Reporter,
               List("/mv:-")
             }
             case _ => Nil
-          }) ++
-          (config.boogieStatistics.toOption match {
-            case Some(path) if path.nonEmpty =>
-              List("/proverOpt:C:-st", "/proverOpt:VERBOSITY=1")
-            case _ =>
-              Nil
           })
       }
     }
@@ -266,10 +260,9 @@ case class CarbonVerifier(override val reporter: Reporter,
       case None => false
     }
     val randomSeed = if (config == null) None else config.proverSpecificRandomSeed.toOption
-    val boogieStatisticsPath = if (config != null) config.boogieStatistics.toOption.filter(_.nonEmpty) else None
 
     logListener.onInvokeBoogie(options)
-    invokeBoogie(_translated, options, timeout, randomize, randomSeed, boogieStatisticsPath) match {
+    invokeBoogie(_translated, options, timeout, randomize, randomSeed) match {
       case (version,result) =>
         if (version!=null) { dependencies.foreach(_ match {
           case b:BoogieDependency => b.version = version
@@ -284,13 +277,6 @@ case class CarbonVerifier(override val reporter: Reporter,
         result
     }
   }
-
-  // Receive Z3 statistics forwarded from BoogieInterface
-  override protected def onBoogieStatistics(stats: Map[String,String]): Unit = {
-    try logListener.onBoogieStatistics(stats) catch { case _: Throwable => }
-  }
-
-
 
   private var _translated: viper.carbon.boogie.Program = null
   def translated = _translated
