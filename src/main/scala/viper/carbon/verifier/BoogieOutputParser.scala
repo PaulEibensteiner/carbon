@@ -45,7 +45,7 @@ class BoogieOutputParser(
     val Error = """  .+\[([0-9]+)\]""".r
     val AnyStat = raw"""^\[SMT(?:-OUT)?(?:-ERR)?-\d+\]\s+.*$$""".r
     val ProverError = raw"""^Prover error:\s*(.+)$$""".r
-    println(line)
+    // println(line)
     
     line match {
       case "" => ()
@@ -94,7 +94,7 @@ class BoogieOutputParser(
         val ErrStatsValue = raw"""\(smt.stats((?:\s+\S+)+)\s*\)$$""".r
         content match {
           case ErrStatsHeader(keys) =>
-            val keySeq = keys.trim.split(" +").toSeq
+            val keySeq = keys.trim.split(" +").map(_.dropWhile(_ == ':')).toSeq
             if (haveReceivedValues) {
               // overwrite, since header new header start
               pendingErrStatKeys = Some(keySeq)
@@ -131,7 +131,7 @@ class BoogieOutputParser(
             () // ignore errors we don't care about
         }
       case Out(instance, content) => 
-        val SingleLine = raw"""\((:[^\s\)]+) $NumberRegex\)$$""".r
+        val SingleLine = raw"""\(:([^\s\)]+) $NumberRegex\)$$""".r
         val LineContent = raw""":(\S+)\s+$NumberRegex"""
         val StartLine = raw"""\(:added-eqs\s+$NumberRegex$$""".r
         val EndLine = raw"""$LineContent\)$$""".r
