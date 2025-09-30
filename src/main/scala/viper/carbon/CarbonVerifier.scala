@@ -16,7 +16,7 @@ import verifier.{BoogieDependency, BoogieInterface, Verifier}
 import java.io.{BufferedOutputStream, File, FileOutputStream, IOException}
 import viper.silver.frontend.{MissingDependencyException, NativeModel, VariablesModel}
 import viper.silver.reporter.Reporter
-// import viper.silver.testing.BenchmarkStatCollector
+import viper.silver.testing.BenchmarkStatCollector
 
 /**
  * The main class to perform verification of Viper programs.  Deals with command-line arguments, configuration
@@ -156,7 +156,7 @@ case class CarbonVerifier(override val reporter: Reporter,
     _program = program
     logListener.onStartVerification(program)
 
-    // BenchmarkStatCollector.addStat("boogieTime")
+    BenchmarkStatCollector.addStat("boogieTime")
 
     val unsupportedFeatures : Seq[AbstractError] =
       program.shallowCollect(
