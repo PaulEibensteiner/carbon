@@ -248,20 +248,23 @@ case class CarbonVerifier(override val reporter: Reporter,
 
     // Use a mutable Map to accumulate counts since variables in pattern matching are not updated in the outer scope
     val stats = scala.collection.mutable.Map(
-      "functions" -> 0,
-      "procedures" -> 0,
+      "const_declarations" -> 0,
       "types" -> 0,
-      "globalVars" -> 0,
-      "axioms" -> 0
+      "functions" -> 0,
+      "axioms" -> 0,
+      "global_vars" -> 0,
+      "procedures" -> 0,
+      "literal_declarations" -> 0
     )
 
     _translated.visit({
-      case _: viper.carbon.boogie.Func => stats("functions") += 1
-      case _: viper.carbon.boogie.Procedure => stats("procedures") += 1
+      case _: viper.carbon.boogie.ConstDecl => stats("const_declarations") += 1
       case _: viper.carbon.boogie.TypeDecl => stats("types") += 1
-      case _: viper.carbon.boogie.TypeAlias => stats("types") += 1
-      case _: viper.carbon.boogie.GlobalVarDecl => stats("globalVars") += 1
+      case _: viper.carbon.boogie.Func => stats("functions") += 1
       case _: viper.carbon.boogie.Axiom => stats("axioms") += 1
+      case _: viper.carbon.boogie.GlobalVarDecl => stats("global_vars") += 1
+      case _: viper.carbon.boogie.Procedure => stats("procedures") += 1
+      case _: viper.carbon.boogie.LiteralDecl => stats("literal_declarations") += 1
     })
 
     // Forward translation statistics via callback (was previously logged)
