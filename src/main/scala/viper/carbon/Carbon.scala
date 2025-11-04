@@ -7,9 +7,13 @@
 package viper.carbon
 
 import ch.qos.logback.classic.Logger
-import viper.silver.frontend.{MinimalViperFrontendAPI, SilFrontend, SilFrontendConfig, ViperFrontendAPI}
+import viper.silver.frontend.MinimalViperFrontendAPI
+import viper.silver.frontend.SilFrontend
+import viper.silver.frontend.SilFrontendConfig
+import viper.silver.frontend.ViperFrontendAPI
 import viper.silver.logger.ViperStdOutLogger
-import viper.silver.reporter.{Reporter, StdIOReporter}
+import viper.silver.reporter.Reporter
+import viper.silver.reporter.StdIOReporter
 import viper.silver.verifier.{Verifier => SilVerifier}
 
 /**
@@ -76,12 +80,6 @@ class MinimalCarbonFrontendAPI(override val reporter: Reporter)
 class CarbonConfig(args: Seq[String]) extends SilFrontendConfig(args, "Carbon") {
   val boogieProverLog = opt[String]("proverLog",
     descr = "Prover log file written by Boogie (default: none)",
-    default = None,
-    noshort = true
-  )
-
-  val boogieStatistics = opt[String]("proverStatisticsFile",
-    descr = "File path to a log file where prover statistics are saved.  Extension .json will be appended. If none given, no statistics are produced.",
     default = None,
     noshort = true
   )
