@@ -20,10 +20,6 @@
             "mainClass": "viper.carbon.Carbon",
             "buildTarget": "carbon",
             "args": [
-                // "--boogieOpt=/proverOpt:LOG_FILE=/home/paul/master-thesis/msc-peibensteine/tryout-targets/boogie_log_@PROC@",
-                //"--print=/home/paul/master-thesis/msc-peibensteine/tryout-results/print",
-                //"--proverLog=/home/paul/master-thesis/msc-peibensteine/tryout-results/proverLog",
-                //"--boogieOpt=/proverOpt:C:-st /proverOpt:VERBOSITY=1",
                 "--proverStatisticsFile=/home/paul/master-thesis/msc-peibensteine/tryout-results/carb-statistics",
                 "/home/paul/master-thesis/msc-peibensteine/tryout-targets/examples-11.1.vpr"
             ],
