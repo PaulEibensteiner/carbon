@@ -10,8 +10,7 @@
                 "-Xss128m",
                 "-DCARBON_CONFIG_FILE=${input:carbonConfigFile}",
                 "-DROOT_DIR=${workspaceFolder}/.."
-            ],
-            "envFile": "${workspaceFolder}/../msc-peibensteine/.env"
+            ]
         },
         {
             "type": "scala",
@@ -20,10 +19,8 @@
             "mainClass": "viper.carbon.Carbon",
             "buildTarget": "carbon",
             "args": [
-                "--proverStatisticsFile=/home/paul/master-thesis/msc-peibensteine/tryout-results/carb-statistics",
                 "/home/paul/master-thesis/msc-peibensteine/tryout-targets/examples-11.1.vpr"
-            ],
-            "envFile": "${workspaceFolder}/../msc-peibensteine/.env"
+            ]
         }
     ],
     "inputs": [
